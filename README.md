@@ -181,12 +181,12 @@ image and pushes it to `ghcr.io/doccaz/wildfly-sle-bci` on every push to
 build but don't push. The workflow uses the repo's own `GITHUB_TOKEN`, so no
 extra secrets are needed.
 
-**One-time setup:** GHCR packages pushed via `GITHUB_TOKEN` are created
-private by default. After the first successful workflow run, make the
-package public from its GitHub settings page
+The published package inherits this repository's visibility, so it's
+pullable anonymously — no `podman login`/`docker login` needed. If that
+ever changes, visibility can be set explicitly from the package's GitHub
+settings page
 (`github.com/doccaz/wildfly-sle-bci/pkgs/container/wildfly-sle-bci` →
-**Package settings** → **Change visibility**) so `podman pull`/`docker pull`
-work without authentication.
+**Package settings** → **Change visibility**).
 
 ## License
 
