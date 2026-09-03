@@ -3,7 +3,6 @@ name: Build and publish image
 on:
   push:
     branches: [main]
-    tags: ["v*.*.*"]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -13,11 +12,25 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  load-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      versions: ${{ steps.load.outputs.versions }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: load
+        run: echo "versions=$(jq -c . versions.json)" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: load-matrix
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.load-matrix.outputs.versions) }}
 
     steps:
       - name: Check out repository
@@ -34,25 +47,29 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract image metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha
+      - name: Compute tags for WildFly ${{ matrix.wildfly_version }}
+        id: tags
+        run: |
+          img="${REGISTRY}/${IMAGE_NAME}"
+          {
+            echo "tags<<EOF"
+            echo "${img}:${{ matrix.wildfly_version }}"
+            echo "${img}:${{ matrix.minor }}"
+            echo "${img}:${{ matrix.major }}"
+            if [ "${{ matrix.latest }}" = "true" ]; then
+              echo "${img}:latest"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Build and push image
+      - name: Build and push WildFly ${{ matrix.wildfly_version }}
         uses: docker/build-push-action@v6
         with:
           context: .
+          build-args: |
+            WILDFLY_VERSION=${{ matrix.wildfly_version }}
+            JAVA_TAG=${{ matrix.java_tag }}
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha,scope=wildfly-${{ matrix.major }}
+          cache-to: type=gha,mode=max,scope=wildfly-${{ matrix.major }}

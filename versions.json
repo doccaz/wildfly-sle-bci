@@ -1,0 +1,16 @@
+[
+  {
+    "wildfly_version": "32.0.0.Final",
+    "java_tag": "21",
+    "major": "32",
+    "minor": "32.0",
+    "latest": false
+  },
+  {
+    "wildfly_version": "41.0.1.Final",
+    "java_tag": "25",
+    "major": "41",
+    "minor": "41.0",
+    "latest": true
+  }
+]
